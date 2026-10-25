@@ -10,43 +10,56 @@ Diseño **fully responsive** con Tailwind CSS (mobile-first: barra lateral colap
 
 ## 1. Estructura del proyecto
 
+Todo lo del **backend** está en `backend/` y todo lo del **frontend** en `frontend/`,
+de modo que la raíz queda limpia:
+
 ```
 /
-├── config/
-│   ├── config.php          # Configuración general (app, BD, sesión) + variables de entorno
-│   ├── database.php        # Conexión PDO singleton a PostgreSQL
-│   └── env.local.php       # (opcional) Overrides locales de configuración
-├── core/
-│   ├── bootstrap.php       # Autoload, sesión, CSRF
-│   ├── Auth.php            # Login/logout + control de acceso por roles
-│   ├── Router.php          # Enrutador: index.php?r=controlador/acción
-│   └── helpers.php         # url(), view(), e(), flash(), validación, iconos, fechas...
-├── controllers/            # Lógica de entrada (10 controladores)
-│   ├── AuthController.php          DashboardController.php   UsuarioController.php
-│   ├── EspecialidadController.php  MedicoController.php      PacienteController.php
-│   ├── CitaController.php          HorarioController.php     HistorialController.php
-│   └── ReporteController.php
-├── models/                 # Acceso a datos y reglas de negocio (consultas preparadas)
-│   ├── Model.php  Usuario.php  Especialidad.php  Medico.php  Paciente.php
-│   └── Cita.php  Horario.php  Historial.php  Reporte.php
-├── views/
-│   ├── layouts/            # app.php (autenticado) · auth.php (público)
-│   ├── auth/               # login · register
-│   ├── shared/             # error · appointment-form · pagination · cancel-form
-│   ├── admin/              # Panel, usuarios, médicos, especialidades, reportes
-│   ├── receptionist/       # Panel, pacientes, formulario de paciente, citas
-│   ├── doctor/             # Panel, agenda, horarios, pacientes, historial
-│   └── patient/            # Panel, citas, historial, perfil
-├── database/
-│   ├── schema.sql          # Tablas, FKs, índices, triggers (validación) y vistas
-│   ├── seed.sql            # Datos de prueba (roles, especialidades, médicos, citas...)
-│   └── migrate.php         # Migrador CLI: schema + seed + contraseñas
-├── public/                 # DocumentRoot
-│   ├── index.php           # Punto de entrada único
-│   └── assets/ css · js
+├── backend/                    # BACKEND (nunca es público)
+│   ├── config/
+│   │   ├── config.php          # Configuración general (app, BD, sesión) + variables de entorno
+│   │   ├── database.php        # Conexión PDO singleton a PostgreSQL
+│   │   └── env.local.php       # (opcional) Overrides locales de configuración
+│   ├── core/
+│   │   ├── bootstrap.php       # Autoload, sesión, CSRF
+│   │   ├── Auth.php            # Login/logout + control de acceso por roles
+│   │   ├── Router.php          # Enrutador: index.php?r=controlador/acción
+│   │   └── helpers.php         # url(), view(), e(), flash(), validación, iconos, fechas...
+│   ├── controllers/            # Lógica de entrada (11 controladores)
+│   │   ├── AuthController.php   PerfilController.php     DashboardController.php
+│   │   ├── UsuarioController.php EspecialidadController.php MedicoController.php
+│   │   ├── PacienteController.php CitaController.php     HorarioController.php
+│   │   └── HistorialController.php ReporteController.php
+│   ├── models/                 # Acceso a datos y reglas de negocio (consultas preparadas)
+│   │   ├── Model.php  Usuario.php  Especialidad.php  Medico.php  Paciente.php
+│   │   └── Cita.php  Horario.php  Historial.php  Reporte.php
+│   └── database/
+│       ├── schema.sql          # Tablas, FKs, índices, triggers (validación) y vistas
+│       ├── seed.sql            # Datos de prueba (roles, especialidades, médicos, citas...)
+│       └── migrate.php         # Migrador CLI: schema + seed + contraseñas
+│
+├── frontend/                   # FRONTEND
+│   ├── views/
+│   │   ├── layouts/            # app.php (autenticado) · auth.php (público)
+│   │   ├── auth/               # login · register · forgot
+│   │   ├── shared/             # profile · error · appointment-form · pagination · cancel-form
+│   │   ├── admin/              # Panel, usuarios, médicos, especialidades, reportes
+│   │   ├── receptionist/       # Panel, pacientes, formulario de paciente, citas
+│   │   ├── doctor/             # Panel, agenda, horarios, pacientes, historial
+│   │   └── patient/            # Panel, citas, historial, perfil
+│   └── public/                 # DocumentRoot de Apache
+│       ├── index.php           # Punto de entrada único (Front Controller)
+│       ├── .htaccess           # Reescritura
+│       └── assets/ css · js
+│
 ├── Dockerfile · docker-compose.yml
+├── .gitignore · .dockerignore
 └── README.md
 ```
+
+**Regla de oro:** si es PHP que decide cosas → `backend/`. Si se muestra en el
+navegador (HTML, plantillas, CSS, JS) → `frontend/`. El DocumentRoot apunta a
+`frontend/public`, así que ni `views/` ni `backend/` son accesibles por URL.
 
 ---
 
@@ -61,7 +74,7 @@ docker compose up -d --build
 # BD desde el host: localhost:5433 (evita conflictos con otra PostgreSQL local)
 ```
 
-El contenedor `migrate` ejecuta `database/schema.sql` + `seed.sql` y establece las
+El contenedor `migrate` ejecuta `backend/database/schema.sql` + `seed.sql` y establece las
 contraseñas de prueba antes de levantar la app.
 
 ### Opción B — Local (XAMPP / Apache + PostgreSQL)
@@ -70,24 +83,24 @@ contraseñas de prueba antes de levantar la app.
    ```sql
    CREATE DATABASE clinica;
    ```
-2. Configura las credenciales en `config/config.php` (o variables `DB_*`).
+2. Configura las credenciales en `backend/config/config.php` (o variables `DB_*`).
 3. Ejecuta la migración:
    ```bash
-   php database/migrate.php          # limpia y reconstruye: --fresh
+   php backend/database/migrate.php          # limpia y reconstruye: --fresh
    ```
-4. Apunta Apache a la carpeta `public/` (DocumentRoot) o usa:
+4. Apunta Apache a la carpeta `frontend/public/` (DocumentRoot) o usa:
    ```bash
-   php -S localhost:8080 -t public
+   php -S localhost:8080 -t frontend/public
    ```
 
 ### Opción C — Solo SQL (nube: Neon, Supabase, RDS, Aiven...)
 
 ```bash
-psql "postgres://user:pass@host:5432/dbname" -f database/schema.sql
-psql "postgres://user:pass@host:5432/dbname" -f database/seed.sql
+psql "postgres://user:pass@host:5432/dbname" -f backend/database/schema.sql
+psql "postgres://user:pass@host:5432/dbname" -f backend/database/seed.sql
 ```
 > `seed.sql` usa la extensión `pgcrypto` (disponible en todos los servicios gestionados)
-> para generar hashes bcrypt. Si no la tienes, ejecuta `php database/migrate.php`,
+> para generar hashes bcrypt. Si no la tienes, ejecuta `php backend/database/migrate.php`,
 > que reescribe las contraseñas con `password_hash()` de PHP.
 
 ---

@@ -144,7 +144,7 @@ $statusLabels = [
 
                                 <?php if (in_array($a['status'], ['programada', 'confirmada'], true)): ?>
                                     <?php $appointment_id = (int) $a['id']; $extra = ['date' => $date]; ?>
-                                    <?php include BASE_PATH . '/views/shared/cancel-form.php'; ?>
+                                    <?php include FRONTEND_PATH . '/views/shared/cancel-form.php'; ?>
                                 <?php endif; ?>
                             </div>
                         </td>

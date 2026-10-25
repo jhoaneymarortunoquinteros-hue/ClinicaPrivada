@@ -149,7 +149,7 @@ $btnSmall   = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs fon
                                 <div class="flex flex-wrap items-center gap-2">
                                     <?php if (in_array($a['status'], ['programada', 'confirmada'], true)): ?>
                                         <?php $appointment_id = (int) $a['id']; $extra = ['status' => $filters['status']]; ?>
-                                        <?php include BASE_PATH . '/views/shared/cancel-form.php'; ?>
+                                        <?php include FRONTEND_PATH . '/views/shared/cancel-form.php'; ?>
                                     <?php elseif ($a['status'] === 'atendida'): ?>
                                         <a href="<?= e(url('historial/miHistorial')) ?>"
                                            class="<?= e($btnSmall) ?> border border-brand-200 text-brand-700 hover:bg-brand-50">
@@ -168,7 +168,7 @@ $btnSmall   = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs fon
 
         <?php
         $extra = ['status' => $filters['status'], 'date_from' => $filters['date_from'], 'date_to' => $filters['date_to']];
-        include BASE_PATH . '/views/shared/pagination.php';
+        include FRONTEND_PATH . '/views/shared/pagination.php';
         ?>
     <?php endif; ?>
 </div>

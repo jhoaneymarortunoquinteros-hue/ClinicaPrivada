@@ -3,16 +3,23 @@ declare(strict_types=1);
 
 /**
  * Bootstrap de la aplicación: configuración, autoload, sesión y CSRF.
+ *
+ * Rutas del proyecto:
+ *   BASE_PATH     -> raíz del repositorio
+ *   BACKEND_PATH  -> lógica (config, controllers, models, core, database)
+ *   FRONTEND_PATH -> presentación (views, public)
  */
 
-define('BASE_PATH', dirname(__DIR__));
+define('BASE_PATH', dirname(__DIR__, 2));
+define('BACKEND_PATH', dirname(__DIR__));
+define('FRONTEND_PATH', BASE_PATH . '/frontend');
 
-$GLOBALS['CONFIG'] = require BASE_PATH . '/config/config.php';
+$GLOBALS['CONFIG'] = require BACKEND_PATH . '/config/config.php';
 
-require BASE_PATH . '/config/database.php';
-require BASE_PATH . '/core/helpers.php';
-require BASE_PATH . '/core/Auth.php';
-require BASE_PATH . '/core/Router.php';
+require BACKEND_PATH . '/config/database.php';
+require BACKEND_PATH . '/core/helpers.php';
+require BACKEND_PATH . '/core/Auth.php';
+require BACKEND_PATH . '/core/Router.php';
 
 // Autoload modular: App\Models\*, App\Controllers\*, App\Core\*
 spl_autoload_register(static function (string $class): void {
@@ -34,7 +41,7 @@ spl_autoload_register(static function (string $class): void {
     if (!isset($dirs[$namespace])) {
         return;
     }
-    $file = BASE_PATH . $dirs[$namespace] . '/' . $name . '.php';
+    $file = BACKEND_PATH . $dirs[$namespace] . '/' . $name . '.php';
     if (is_file($file)) {
         require $file;
     }

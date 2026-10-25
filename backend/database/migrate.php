@@ -4,15 +4,15 @@ declare(strict_types=1);
 /**
  * Migrador de base de datos (CLI).
  *
- *   php database/migrate.php            # crea esquema + datos de prueba
- *   php database/migrate.php --fresh    # elimina el esquema y vuelve a crear todo
+ *   php backend/database/migrate.php            # crea esquema + datos de prueba
+ *   php backend/database/migrate.php --fresh    # elimina el esquema y vuelve a crear todo
  *
  * El script:
  *  1. Aplica las migraciones incrementales sobre bases de datos existentes
  *     (columna users.username y correo opcional).
- *  2. Ejecuta database/schema.sql (tablas, FKs, índices, triggers y vistas).
+ *  2. Ejecuta backend/database/schema.sql (tablas, FKs, índices, triggers y vistas).
  *  3. Genera el nombre de usuario de las cuentas que no lo tengan.
- *  4. Si la tabla users está vacía, ejecuta database/seed.sql.
+ *  4. Si la tabla users está vacía, ejecuta backend/database/seed.sql.
  *  5. Re-escribe las contraseñas de los usuarios de prueba con
  *     password_hash() de PHP (garantiza el inicio de sesión aunque el
  *     servicio PostgreSQL no tenga disponible la extensión pgcrypto).
@@ -22,11 +22,12 @@ if (PHP_SAPI !== 'cli') {
     exit("Este script solo puede ejecutarse desde la línea de comandos.\n");
 }
 
-define('BASE_PATH', dirname(__DIR__));
+define('BASE_PATH', dirname(__DIR__, 2));
+define('BACKEND_PATH', dirname(__DIR__));
 
-$GLOBALS['CONFIG'] = require BASE_PATH . '/config/config.php';
-require BASE_PATH . '/config/database.php';
-require BASE_PATH . '/core/helpers.php';
+$GLOBALS['CONFIG'] = require BACKEND_PATH . '/config/config.php';
+require BACKEND_PATH . '/config/database.php';
+require BACKEND_PATH . '/core/helpers.php';
 
 use App\Core\Database;
 
@@ -184,4 +185,4 @@ try {
         printf("   %-26s  %s\n", $email, $password);
     }
 }
-echo "\nListo. Abre public/index.php (o http://localhost:8080 con Docker).\n";
+echo "\nListo. Abre frontend/public/index.php (o http://localhost:8080 con Docker).\n";

@@ -57,7 +57,7 @@ function redirect(string $route, array $params = []): never
  */
 function view(string $template, array $data = [], ?string $layout = 'layouts/app'): void
 {
-    $file = BASE_PATH . '/views/' . $template . '.php';
+    $file = FRONTEND_PATH . '/views/' . $template . '.php';
     if (!is_file($file)) {
         throw new RuntimeException('Vista no encontrada: ' . $template);
     }
@@ -70,7 +70,7 @@ function view(string $template, array $data = [], ?string $layout = 'layouts/app
 
     if ($layout !== null) {
         $title = $data['title'] ?? (string) config('app.name');
-        require BASE_PATH . '/views/' . $layout . '.php';
+        require FRONTEND_PATH . '/views/' . $layout . '.php';
     }
 }
 

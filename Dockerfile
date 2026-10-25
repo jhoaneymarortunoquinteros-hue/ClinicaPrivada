@@ -13,10 +13,13 @@ RUN printf 'PassEnv DB_HOST DB_PORT DB_NAME DB_USER DB_PASS APP_NAME APP_BASE_UR
     && a2enconf passenv
 
 # DocumentRoot -> /public
-RUN sed -ri 's!/var/www/html!/var/www/html/public!g' \
+RUN sed -ri 's!/var/www/html!/var/www/html/frontend/public!g' \
         /etc/apache2/sites-available/000-default.conf
 
-COPY . /var/www/html
+# El backend nunca debe quedar expuesto: solo se copia su código,
+# que vive fuera del DocumentRoot.
+COPY backend/ /var/www/html/backend/
+COPY frontend/ /var/www/html/frontend/
 RUN chown -R www-data:www-data /var/www/html
 
 EXPOSE 80

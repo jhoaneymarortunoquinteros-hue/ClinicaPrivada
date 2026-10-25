@@ -27,7 +27,7 @@ services:
       DB_NAME: clinica
       DB_USER: clinica
       DB_PASS: clinica
-    command: php /var/www/html/database/migrate.php
+    command: php /var/www/html/backend/database/migrate.php
 
   web:
     build: .

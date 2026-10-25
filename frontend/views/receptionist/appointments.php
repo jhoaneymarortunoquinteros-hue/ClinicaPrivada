@@ -226,7 +226,7 @@ $statusLabel = static function (string $code): string {
                                     <?php endif; ?>
 
                                     <?php $appointment_id = (int) $a['id']; $extra = $filters; unset($extra['q']); ?>
-                                    <?php include BASE_PATH . '/views/shared/cancel-form.php'; ?>
+                                    <?php include FRONTEND_PATH . '/views/shared/cancel-form.php'; ?>
                                 </div>
                             </td>
                         </tr>
@@ -243,4 +243,4 @@ $extra = array_filter($filters, static function ($value): bool {
 });
 unset($extra['page']);
 ?>
-<?php include BASE_PATH . '/views/shared/pagination.php'; ?>
+<?php include FRONTEND_PATH . '/views/shared/pagination.php'; ?>

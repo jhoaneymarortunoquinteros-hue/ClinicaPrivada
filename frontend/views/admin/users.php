@@ -1,9 +1,8 @@
 <?php
 /**
- * Gestión de médicos con su especialidad (solo administrador).
- * Variables: $doctors, $specialties, $filters (q, specialty_id, active),
- *            $pagination, $editing (v_doctors|null), $editingUser (users|null),
- *            $formOpen (bool), $errors
+ * Gestión de usuarios (solo administrador).
+ * Variables: $users, $roles, $filters (q, role), $pagination,
+ *            $editing (usuario|null), $formOpen (bool), $errors
  */
 $editing = $editing ?? null;
 $errors = $errors ?? [];
@@ -14,34 +13,31 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
     }
     return $editing[$field] ?? $default;
 };
+$roleBadges = [
+    'admin'         => 'bg-violet-100 text-violet-800',
+    'recepcionista' => 'bg-sky-100 text-sky-800',
+    'medico'        => 'bg-brand-100 text-brand-800',
+    'paciente'      => 'bg-amber-100 text-amber-800',
+];
 ?>
 <!-- Buscador -->
 <div class="card p-4 mb-5">
-    <form method="get" action="<?= e(url('medicos/index')) ?>" class="flex flex-col sm:flex-row gap-3">
-        <input type="hidden" name="r" value="medicos/index">
+    <form method="get" action="<?= e(url('usuarios/index')) ?>" class="flex flex-col sm:flex-row gap-3">
+        <input type="hidden" name="r" value="usuarios/index">
         <div class="flex-1">
-            <label for="q" class="input-label">Buscar médico</label>
+            <label for="q" class="input-label">Buscar usuario</label>
             <input type="search" id="q" name="q" value="<?= e($filters['q']) ?>"
-                   placeholder="Nombre, correo o licencia..." class="input">
+                   placeholder="Nombre, apellido o correo..." class="input">
         </div>
         <div class="sm:w-56">
-            <label for="specialty_id" class="input-label">Especialidad</label>
-            <select id="specialty_id" name="specialty_id" class="input">
-                <option value="">Todas</option>
-                <?php foreach ($specialties as $s): ?>
-                    <option value="<?= e((string) $s['id']) ?>"
-                        <?= (int) $filters['specialty_id'] === (int) $s['id'] ? 'selected' : '' ?>>
-                        <?= e($s['name']) ?>
+            <label for="role" class="input-label">Rol</label>
+            <select id="role" name="role" class="input">
+                <option value="">Todos los roles</option>
+                <?php foreach ($roles as $r): ?>
+                    <option value="<?= e($r['code']) ?>" <?= $filters['role'] === $r['code'] ? 'selected' : '' ?>>
+                        <?= e($r['name']) ?>
                     </option>
                 <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="sm:w-40">
-            <label for="active" class="input-label">Estado</label>
-            <select id="active" name="active" class="input">
-                <option value="">Todos</option>
-                <option value="1" <?= $filters['active'] === '1' ? 'selected' : '' ?>>Activos</option>
-                <option value="0" <?= $filters['active'] === '0' ? 'selected' : '' ?>>Inactivos</option>
             </select>
         </div>
         <div class="flex items-end gap-2">
@@ -49,10 +45,14 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
                     class="px-5 py-2.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold transition">
                 Buscar
             </button>
-            <a href="<?= e(url('medicos/index', ['action' => 'nuevo'])) ?>"
-               class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800
+            <a href="<?= e(url('usuarios/index')) ?>"
+               class="px-4 py-2.5 rounded-lg border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">
+                Limpiar
+            </a>
+            <a href="<?= e(url('usuarios/index', ['action' => 'nuevo'])) ?>"
+               class="ml-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800
                       text-white text-sm font-semibold transition">
-                <?= icon('plus', 'w-4 h-4') ?> Nuevo médico
+                <?= icon('plus', 'w-4 h-4') ?> Nuevo usuario
             </a>
         </div>
     </form>
@@ -62,14 +62,14 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
     <!-- Formulario crear / editar -->
     <div class="card p-5 mb-6 border-l-4 border-brand-600">
         <h2 class="text-base font-bold text-slate-900 mb-4">
-            <?= $editing ? 'Editar médico: ' . e($editing['full_name']) : 'Registrar nuevo médico' ?>
+            <?= $editing ? 'Editar usuario: ' . e($editing['first_name'] . ' ' . $editing['last_name']) : 'Nuevo usuario' ?>
         </h2>
 
-        <form method="post" action="<?= e(url('medicos/guardar')) ?>" class="space-y-4" novalidate>
+        <form method="post" action="<?= e(url('usuarios/guardar')) ?>" class="space-y-4" novalidate>
             <?= csrf_field() ?>
             <?php if ($editing): ?>
                 <input type="hidden" name="id" value="<?= e((string) $editing['id']) ?>">
-                <input type="hidden" name="user_id" value="<?= e((string) $editing['user_id']) ?>">
+                <input type="hidden" name="current_role_id" value="<?= e((string) $editing['role_id']) ?>">
             <?php endif; ?>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -106,66 +106,47 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
                            value="<?= e((string) $val('phone')) ?>">
                 </div>
                 <div>
-                    <label for="specialty_id" class="input-label">Especialidad *</label>
-                    <select id="specialty_id" name="specialty_id" required class="input"
-                            aria-invalid="<?= !empty($errors['specialty_id']) ? 'true' : 'false' ?>">
+                    <label for="role_id" class="input-label">Rol *</label>
+                    <select id="role_id" name="role_id" required class="input"
+                            aria-invalid="<?= !empty($errors['role_id']) ? 'true' : 'false' ?>">
                         <option value="">— Selecciona —</option>
-                        <?php foreach ($specialties as $s): ?>
-                            <option value="<?= e((string) $s['id']) ?>"
-                                <?= (int) $val('specialty_id') === (int) $s['id'] ? 'selected' : '' ?>>
-                                <?= e($s['name']) ?> (<?= (int) $s['duration_minutes'] ?> min)
+                        <?php foreach ($roles as $r): ?>
+                            <option value="<?= e((string) $r['id']) ?>"
+                                <?= (int) $val('role_id', $editing['role_id'] ?? 0) === (int) $r['id'] ? 'selected' : '' ?>>
+                                <?= e($r['name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <?php if (!empty($errors['specialty_id'])): ?>
-                        <p class="mt-1 text-xs text-rose-600"><?= e($errors['specialty_id']) ?></p>
+                    <?php if (!empty($errors['role_id'])): ?>
+                        <p class="mt-1 text-xs text-rose-600"><?= e($errors['role_id']) ?></p>
                     <?php endif; ?>
-                </div>
-                <div>
-                    <label for="license_number" class="input-label">N.º de licencia / colegiatura *</label>
-                    <input type="text" id="license_number" name="license_number" required class="input"
-                           placeholder="MED-1004" value="<?= e((string) $val('license_number')) ?>"
-                           aria-invalid="<?= !empty($errors['license_number']) ? 'true' : 'false' ?>">
-                    <?php if (!empty($errors['license_number'])): ?>
-                        <p class="mt-1 text-xs text-rose-600"><?= e($errors['license_number']) ?></p>
-                    <?php endif; ?>
-                </div>
-                <div>
-                    <label for="professional_title" class="input-label">Título profesional</label>
-                    <input type="text" id="professional_title" name="professional_title" class="input"
-                           placeholder="Ej.: Cardiólogo" value="<?= e((string) $val('professional_title')) ?>">
                 </div>
                 <div>
                     <label for="password" class="input-label">
                         Contraseña <?= $editing ? '<span class="font-normal text-slate-400">(opcional)</span>' : '*' ?>
                     </label>
-                    <input type="password" id="password" name="password" minlength="8"
+                    <input type="password" id="password" name="password" minlength="8" autocomplete="new-password"
                            pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
                            title="<?= e(password_rules()) ?>"
-                           autocomplete="new-password" class="input" <?= $editing ? '' : 'required' ?>
-                           placeholder="<?= $editing ? 'Dejar en blanco para mantener' : 'Mínimo 8 caracteres' ?>"
+                           class="input" <?= $editing ? '' : 'required' ?>
+                           placeholder="<?= $editing ? 'Dejar en blanco para mantener' : 'Mín. 8 caracteres' ?>"
                            aria-invalid="<?= !empty($errors['password']) ? 'true' : 'false' ?>">
                     <p class="mt-1 text-xs text-slate-500"><?= e(password_rules()) ?></p>
                     <?php if (!empty($errors['password'])): ?>
                         <p class="mt-1 text-xs text-rose-600"><?= e($errors['password']) ?></p>
                     <?php endif; ?>
                 </div>
-                <div class="sm:col-span-2 lg:col-span-3">
-                    <label for="bio" class="input-label">Perfil profesional</label>
-                    <textarea id="bio" name="bio" rows="2" maxlength="500"
-                              class="input"><?= e((string) $val('bio')) ?></textarea>
-                </div>
             </div>
 
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" name="active" value="1"
-                       class="rounded border-slate-300 text-brand-700 focus:ring-brand-600"
+                <input type="checkbox" name="active" value="1" class="rounded border-slate-300 text-brand-700
+                       focus:ring-brand-600"
                     <?= (int) $val('active', 1) === 1 ? 'checked' : '' ?>>
-                Médico activo (puede recibir citas)
+                Cuenta activa
             </label>
 
             <div class="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
-                <a href="<?= e(url('medicos/index')) ?>"
+                <a href="<?= e(url('usuarios/index')) ?>"
                    class="px-5 py-2.5 rounded-lg border border-slate-300 text-sm font-semibold text-slate-600
                           hover:bg-slate-50 text-center">
                     Cancelar
@@ -174,7 +155,7 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
                         class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-brand-700
                                hover:bg-brand-800 text-white text-sm font-semibold transition">
                     <?= icon('check', 'w-4 h-4') ?>
-                    <?= $editing ? 'Guardar cambios' : 'Registrar médico' ?>
+                    <?= $editing ? 'Guardar cambios' : 'Crear usuario' ?>
                 </button>
             </div>
         </form>
@@ -184,7 +165,7 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
 <!-- Listado -->
 <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
-        <h2 class="font-bold text-slate-900">Equipo médico</h2>
+        <h2 class="font-bold text-slate-900">Usuarios del sistema</h2>
         <span class="text-xs text-slate-500"><?= (int) $pagination['total'] ?> registro(s)</span>
     </div>
 
@@ -192,66 +173,76 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
         <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
                 <tr>
-                    <th class="text-left px-5 py-3 font-semibold">Médico</th>
-                    <th class="text-left px-5 py-3 font-semibold">Licencia</th>
-                    <th class="text-left px-5 py-3 font-semibold">Especialidad</th>
-                    <th class="text-left px-5 py-3 font-semibold hidden md:table-cell">Duración</th>
+                    <th class="text-left px-5 py-3 font-semibold">Usuario</th>
+                    <th class="text-left px-5 py-3 font-semibold">Teléfono</th>
+                    <th class="text-left px-5 py-3 font-semibold">Rol</th>
                     <th class="text-left px-5 py-3 font-semibold">Estado</th>
+                    <th class="text-left px-5 py-3 font-semibold hidden md:table-cell">Último acceso</th>
                     <th class="text-right px-5 py-3 font-semibold">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                <?php if (!$doctors): ?>
+                <?php if (!$users): ?>
                     <tr>
                         <td colspan="6" class="px-5 py-10 text-center text-slate-400">
-                            No hay médicos registrados con esos criterios.
+                            No se encontraron usuarios con esos criterios.
                         </td>
                     </tr>
                 <?php endif; ?>
-                <?php foreach ($doctors as $d): ?>
+                <?php foreach ($users as $u): ?>
                     <tr class="hover:bg-slate-50">
                         <td class="px-5 py-3">
-                            <span class="block font-semibold text-slate-800"><?= e($d['full_name']) ?></span>
-                            <span class="block text-xs text-slate-500"><?= e($d['email']) ?></span>
+                            <div class="flex items-center gap-3">
+                                <span class="grid place-items-center w-9 h-9 rounded-full bg-brand-100
+                                             text-brand-800 text-xs font-bold shrink-0">
+                                    <?= e(strtoupper(mb_substr($u['first_name'], 0, 1) . mb_substr($u['last_name'], 0, 1))) ?>
+                                </span>
+                                <span>
+                                    <span class="block font-semibold text-slate-800">
+                                        <?= e($u['first_name'] . ' ' . $u['last_name']) ?>
+                                    </span>
+                                    <span class="block text-xs font-medium text-brand-700">
+                                        @<?= e($u['username'] ?? 'sin-usuario') ?>
+                                    </span>
+                                    <?php if (!empty($u['email'])): ?>
+                                        <span class="block text-xs text-slate-500"><?= e($u['email']) ?></span>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
                         </td>
-                        <td class="px-5 py-3 text-slate-600"><?= e($d['license_number']) ?></td>
+                        <td class="px-5 py-3 text-slate-600"><?= e($u['phone'] ?: '—') ?></td>
                         <td class="px-5 py-3">
-                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-800">
-                                <?= e($d['specialty_name']) ?>
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold <?= $roleBadges[$u['role_code']] ?? 'bg-slate-100 text-slate-700' ?>">
+                                <?= e($u['role_name']) ?>
                             </span>
                         </td>
-                        <td class="px-5 py-3 text-slate-600 hidden md:table-cell">
-                            <?= (int) $d['duration_minutes'] ?> min
-                        </td>
                         <td class="px-5 py-3">
-                            <?php if ((int) $d['active'] === 1 && (int) $d['user_active'] === 1): ?>
+                            <?php if ((int) $u['active'] === 1): ?>
                                 <span class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Activo</span>
                             <?php else: ?>
                                 <span class="px-2 py-1 rounded-full text-xs font-semibold bg-slate-200 text-slate-600">Inactivo</span>
                             <?php endif; ?>
                         </td>
+                        <td class="px-5 py-3 text-slate-500 hidden md:table-cell text-xs">
+                            <?= e(format_datetime($u['last_login_at'])) ?>
+                        </td>
                         <td class="px-5 py-3">
-                            <div class="flex items-center justify-end gap-2 flex-wrap">
-                                <a href="<?= e(url('medicos/index', ['action' => 'editar', 'id' => $d['id']])) ?>"
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="<?= e(url('usuarios/index', ['action' => 'editar', 'id' => $u['id']])) ?>"
                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300
                                           text-xs font-semibold text-slate-600 hover:bg-slate-100">
                                     <?= icon('edit', 'w-4 h-4') ?> Editar
                                 </a>
-                                <a href="<?= e(url('horarios/index', ['doctor_id' => $d['id']])) ?>"
-                                   class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300
-                                          text-xs font-semibold text-slate-600 hover:bg-slate-100">
-                                    <?= icon('clock', 'w-4 h-4') ?> Horarios
-                                </a>
-                                <form method="post" action="<?= e(url('medicos/toggle')) ?>"
-                                      data-confirm="<?= (int) $d['active'] === 1 ? '¿Desactivar este médico? No podrá recibir nuevas citas.' : '¿Activar este médico?' ?>">
+                                <form method="post" action="<?= e(url('usuarios/toggle')) ?>"
+                                      data-confirm="<?= (int) $u['active'] === 1 ? '¿Desactivar esta cuenta? El usuario no podrá iniciar sesión.' : '¿Activar esta cuenta?' ?>">
                                     <?= csrf_field() ?>
-                                    <input type="hidden" name="id" value="<?= e((string) $d['id']) ?>">
+                                    <input type="hidden" name="id" value="<?= e((string) $u['id']) ?>">
                                     <button type="submit"
                                             class="px-3 py-1.5 rounded-lg text-xs font-semibold transition
-                                                   <?= (int) $d['active'] === 1
+                                                   <?= (int) $u['active'] === 1
                                                        ? 'border border-rose-200 text-rose-600 hover:bg-rose-50'
                                                        : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50' ?>">
-                                        <?= (int) $d['active'] === 1 ? 'Desactivar' : 'Activar' ?>
+                                        <?= (int) $u['active'] === 1 ? 'Desactivar' : 'Activar' ?>
                                     </button>
                                 </form>
                             </div>
@@ -264,5 +255,5 @@ $val = static function (string $field, mixed $default = '') use ($editing): mixe
 </div>
 
 <?php
-$extra = ['q' => $filters['q'], 'specialty_id' => $filters['specialty_id'], 'active' => $filters['active']];
-include BASE_PATH . '/views/shared/pagination.php';
+$extra = ['q' => $filters['q'], 'role' => $filters['role']];
+include FRONTEND_PATH . '/views/shared/pagination.php';

@@ -173,4 +173,4 @@ $errors     = $errors ?? [];
 </div>
 
 <?php $extra = ['q' => $filters['q']]; ?>
-<?php include BASE_PATH . '/views/shared/pagination.php'; ?>
+<?php include FRONTEND_PATH . '/views/shared/pagination.php'; ?>
