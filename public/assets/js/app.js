@@ -56,20 +56,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btn) dismissToast(btn.closest('.toast'));
     });
 
-    // --- Selector visual de rol en el login (CU01) ---
-    var roleCards = document.querySelectorAll('[data-role]');
-    var roleHint = document.getElementById('role-hint');
-    roleCards.forEach(function (card) {
-        card.addEventListener('click', function () {
-            roleCards.forEach(function (c) { c.classList.remove('is-active'); });
-            card.classList.add('is-active');
-            if (roleHint) {
-                roleHint.textContent = card.getAttribute('data-hint') || '';
-                roleHint.classList.toggle('hidden', !roleHint.textContent);
-            }
-        });
-    });
-
     // --- Cerrar sesión en pestañas antiguas (menú desplegable simple) ---
     var userMenu = document.getElementById('user-menu-button');
     var userPanel = document.getElementById('user-menu');

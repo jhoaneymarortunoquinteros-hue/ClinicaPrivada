@@ -143,51 +143,6 @@ label.input-label {
 }
 .toast-close:hover { opacity: 1; background: rgba(15, 23, 42, .07); }
 
-/* --- Tarjetas de rol en el login (CU01) --- */
-.role-card {
-    display: flex;
-    align-items: center;
-    gap: .55rem;
-    padding: .6rem .7rem;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: .7rem;
-    font-size: .8rem;
-    font-weight: 600;
-    color: #334155;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color .15s, background-color .15s, box-shadow .15s, transform .1s;
-}
-.role-card:hover {
-    border-color: #0d9488;
-    background: #f0fdfa;
-    transform: translateY(-1px);
-}
-.role-card.is-active {
-    border-color: #0d9488;
-    background: #f0fdfa;
-    color: #115e59;
-    box-shadow: 0 0 0 3px rgba(13, 148, 136, .15);
-}
-.role-card .role-icon {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: .5rem;
-    background: #f1f5f9;
-    color: #0f766e;
-}
-.role-card.is-active .role-icon { background: #ccfbf1; }
-
-#role-hint {
-    border: 1px dashed #bae6fd;
-    background: #f0f9ff;
-    color: #0369a1;
-}
-
 @media print {
     #sidebar,
     header,
