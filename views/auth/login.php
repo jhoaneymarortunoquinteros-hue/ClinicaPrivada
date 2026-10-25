@@ -6,9 +6,37 @@
 $errors = $errors ?? [];
 ?>
 <div class="card p-6 sm:p-8 shadow-xl">
-    <div class="mb-6 text-center">
+    <div class="mb-5 text-center">
         <h1 class="text-xl font-bold text-slate-900">Iniciar sesión</h1>
         <p class="text-sm text-slate-500 mt-1">Ingresa con tu nombre de usuario y contraseña</p>
+    </div>
+
+    <!-- CU01: acceso según el rol con el que entras (no muestra credenciales) -->
+    <div class="mb-3">
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Entrar como</p>
+        <div class="grid grid-cols-2 gap-2" id="role-cards">
+            <button type="button" class="role-card" data-role="admin"
+                    data-hint="Administrador: gestiona usuarios, médicos, especialidades, pacientes, citas y reportes.">
+                <span class="role-icon"><?= icon('grid', 'w-4 h-4') ?></span>
+                <span>Administrador</span>
+            </button>
+            <button type="button" class="role-card" data-role="recepcionista"
+                    data-hint="Recepcionista: registra pacientes, programa citas y marca la asistencia del día.">
+                <span class="role-icon"><?= icon('calendar', 'w-4 h-4') ?></span>
+                <span>Recepción</span>
+            </button>
+            <button type="button" class="role-card" data-role="medico"
+                    data-hint="Médico: consulta su agenda, atiende citas y registra la historia clínica.">
+                <span class="role-icon"><?= icon('medical', 'w-4 h-4') ?></span>
+                <span>Médico</span>
+            </button>
+            <button type="button" class="role-card" data-role="paciente"
+                    data-hint="Paciente: solicita citas, revisa su historial y actualiza su perfil.">
+                <span class="role-icon"><?= icon('heart', 'w-4 h-4') ?></span>
+                <span>Paciente</span>
+            </button>
+        </div>
+        <p id="role-hint" class="hidden mt-2 rounded-lg px-3 py-2 text-xs"></p>
     </div>
 
     <?php if (!empty($errors['password'])): ?>

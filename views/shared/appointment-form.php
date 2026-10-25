@@ -135,28 +135,38 @@ $err = static function (string $field) use ($errors): ?string {
             </div>
         </div>
 
-        <!-- Horario disponible -->
-        <div class="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                <p class="text-sm font-semibold text-brand-900">Horario disponible</p>
-                <p class="text-xs text-brand-800" id="duration-hint">
-                    <?php
-                    $currentDoctor = null;
-                    foreach ($doctors as $d) {
-                        if ((int) $d['id'] === $selDoctor) {
-                            $currentDoctor = $d;
-                            break;
-                        }
-                    }
-                    ?>
-                    <?php if ($currentDoctor): ?>
-                        Duración de la consulta: <strong><?= e((string) $currentDoctor['duration_minutes']) ?> min</strong>
-                        (<?= e($currentDoctor['specialty_name']) ?>)
-                    <?php else: ?>
-                        Selecciona un médico para ver sus franjas libres.
-                    <?php endif; ?>
+        <!-- CU21: horario disponible (bloque de consulta de franjas libres) -->
+        <?php
+        $currentDoctor = null;
+        foreach ($doctors as $d) {
+            if ((int) $d['id'] === $selDoctor) {
+                $currentDoctor = $d;
+                break;
+            }
+        }
+        ?>
+        <div class="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <p class="flex items-center gap-2 text-sm font-bold text-brand-900">
+                    <?= icon('clock', 'w-4 h-4') ?> Horario disponible
                 </p>
+                <span id="slots-count"
+                      class="inline-flex items-center rounded-full bg-white border border-brand-200
+                             text-brand-800 px-2.5 py-0.5 text-xs font-semibold">
+                    <?php $n = count($slots); ?>
+                    <?= $n ?> franja<?= $n === 1 ? '' : 's' ?> libre<?= $n === 1 ? '' : 's' ?>
+                </span>
             </div>
+
+            <p class="text-xs text-brand-800 mb-3" id="duration-hint"
+               data-specialty="<?= e((string) ($currentDoctor['specialty_name'] ?? '')) ?>">
+                <?php if (!empty($currentDoctor)): ?>
+                    Duración de la consulta: <strong><?= e((string) $currentDoctor['duration_minutes']) ?> min</strong>
+                    (<?= e((string) $currentDoctor['specialty_name']) ?>)
+                <?php else: ?>
+                    Selecciona especialidad, médico y fecha para ver sus franjas libres.
+                <?php endif; ?>
+            </p>
 
             <label for="start_time" class="input-label">Hora de inicio *</label>
             <select name="start_time" id="start_time" required class="input"
@@ -172,8 +182,10 @@ $err = static function (string $field) use ($errors): ?string {
                     <?php endforeach; ?>
                 <?php endif; ?>
             </select>
-            <p class="mt-1 text-xs text-slate-500">
-                Las franjas se calculan según el horario laboral del médico y las citas ya ocupadas.
+
+            <p id="slots-note" class="mt-2 flex items-start gap-1.5 text-xs text-slate-600">
+                <?= icon('info', 'w-3.5 h-3.5 mt-0.5 shrink-0 text-brand-600') ?>
+                <span>Las franjas se calculan según el horario laboral del médico y las citas ya ocupadas.</span>
             </p>
         </div>
 
@@ -216,25 +228,46 @@ $err = static function (string $field) use ($errors): ?string {
     var dateInput = document.getElementById('scheduled_date');
     var slotSelect = document.getElementById('start_time');
     var durationHint = document.getElementById('duration-hint');
+    var slotsCount = document.getElementById('slots-count');
+    var slotsNote = document.getElementById('slots-note');
     var endpoint = '<?= e(url('citas/disponibilidad')) ?>';
     var initialStart = <?= json_encode($selStart) ?>;
     var isReprogram = <?= json_encode($isReprogram) ?>;
+    var defaultNote = slotsNote ? slotsNote.querySelector('span').innerHTML : '';
+
+    function setCount(n, text) {
+        if (!slotsCount) return;
+        slotsCount.textContent = (n === null)
+            ? text
+            : n + ' franja' + (n === 1 ? '' : 's') + ' libre' + (n === 1 ? '' : 's');
+    }
+
+    function setNote(text) {
+        if (slotsNote) slotsNote.querySelector('span').innerHTML = text;
+    }
 
     function renderSlots(data) {
         var slots = data.slots || [];
         slotSelect.innerHTML = '';
 
         if (data.duration && durationHint) {
-            durationHint.innerHTML = 'Duración de la consulta: <strong>' + data.duration + ' min</strong>';
+            var specialty = durationHint.getAttribute('data-specialty') || '';
+            durationHint.innerHTML = 'Duración de la consulta: <strong>' + data.duration + ' min</strong>' +
+                (specialty ? ' (' + specialty + ')' : '');
         }
+
+        setCount(slots.length, '');
 
         if (!slots.length) {
             var none = document.createElement('option');
             none.value = '';
             none.textContent = 'Sin disponibilidad para esta fecha';
             slotSelect.appendChild(none);
+            setNote('No hay franjas libres ese día. Prueba con otra fecha o con otro médico.');
             return;
         }
+
+        setNote(defaultNote);
 
         var placeholder = document.createElement('option');
         placeholder.value = '';
@@ -259,6 +292,10 @@ $err = static function (string $field) use ($errors): ?string {
         if (!doctorId || !dateInput.value) return;
 
         slotSelect.disabled = true;
+        slotSelect.setAttribute('aria-busy', 'true');
+        setCount(null, 'Buscando…');
+        setNote('Consultando la disponibilidad de ese día…');
+
         fetch(endpoint + '?doctor_id=' + encodeURIComponent(doctorId) +
               '&date=' + encodeURIComponent(dateInput.value), {
             headers: { 'Accept': 'application/json' }
@@ -266,9 +303,15 @@ $err = static function (string $field) use ($errors): ?string {
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 slotSelect.disabled = false;
+                slotSelect.removeAttribute('aria-busy');
                 renderSlots(data);
             })
-            .catch(function () { slotSelect.disabled = false; });
+            .catch(function () {
+                slotSelect.disabled = false;
+                slotSelect.removeAttribute('aria-busy');
+                setCount(null, 'Sin datos');
+                setNote('No se pudo consultar la disponibilidad. Vuelve a intentarlo.');
+            });
     }
 
     if (doctorSelect && !isReprogram) doctorSelect.addEventListener('change', loadSlots);
