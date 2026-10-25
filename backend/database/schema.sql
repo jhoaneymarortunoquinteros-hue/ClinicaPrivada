@@ -164,6 +164,23 @@ CREATE TABLE IF NOT EXISTS medical_records (
 );
 CREATE INDEX IF NOT EXISTS idx_records_patient ON medical_records(patient_id, consultation_date);
 
+-- ---------------------------------------------------------------------
+-- 9. RECUPERACIÓN DE CONTRASEÑA (tokens de un solo uso)
+--     Se guarda el hash SHA-256 del token; el token en claro solo viaja
+--     en el correo, nunca en la base de datos.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS password_resets (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  CHAR(64)     NOT NULL,
+    expires_at  TIMESTAMPTZ  NOT NULL,
+    used_at     TIMESTAMPTZ,
+    ip_address  INET,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user  ON password_resets(user_id, created_at DESC);
+
 -- =====================================================================
 -- TRIGGERS: VALIDACIÓN ESTRICTA DE CITAS (duración, horario, traslapes)
 -- =====================================================================

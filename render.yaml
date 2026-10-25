@@ -1,0 +1,62 @@
+# =====================================================================
+# Render Blueprint  ·  Clínica VidaSalud
+#
+# Cómo usarlo:
+#   1. Sube el proyecto a GitHub (ya está).
+#   2. En Render: New → Blueprint → selecciona este repositorio.
+#   3. Render crea la base de datos y el servicio web automáticamente.
+#   4. En "Environment" rellena MAIL_PASS con tu contraseña de aplicación
+#      de Gmail (las demás variables de correo ya vienen precargadas).
+# =====================================================================
+
+services:
+  - type: web
+    name: clinica-vidasalud
+    runtime: docker
+    plan: free                    # plan gratuito (se suspende tras 15 min sin uso)
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz     # sonda que devuelve 200 "ok"
+    autoDeploy: true              # hace deploy cada vez que subes a main
+
+    envVars:
+      # --- Aplicación -------------------------------------------------
+      - key: APP_NAME
+        value: "Clínica VidaSalud"
+      # Pon aquí la URL que asigna Render (la escribe la primera vez
+      # o la corriges tras crear el servicio).
+      - key: APP_BASE_URL
+        value: https://clinica-vidasalud.onrender.com
+      - key: TZ
+        value: America/Bogota
+
+      # --- Base de datos (la inyecta Render desde clinica-db) ---------
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinica-db
+          property: connectionString
+
+      # --- Correo saliente (Gmail SMTP) -------------------------------
+      - key: MAIL_DRIVER
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_USER
+        sync: false               # ← tu correo Gmail (se escribe en el panel)
+      - key: MAIL_PASS
+        sync: false               # ← contraseña de aplicación de Gmail
+      - key: MAIL_FROM
+        sync: false               # ← normalmente el mismo correo que MAIL_USER
+      - key: MAIL_FROM_NAME
+        value: "Clínica VidaSalud"
+
+databases:
+  - name: clinica-db
+    plan: free                    # PostgreSQL gestionado, gratuito
+    databaseName: clinica
+    ipAllowList: []               # solo accesible desde los servicios de Render

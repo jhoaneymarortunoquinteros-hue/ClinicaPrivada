@@ -1,0 +1,24 @@
+# Finales fijos: los scripts de shell siempre con LF (si no, /bin/sh falla)
+*.sh text eol=lf
+
+# PHP, SQL, HTML, CSS y JS con finales nativos del sistema
+*.php text
+*.sql text
+*.html text
+*.css text
+*.js text
+*.yml text
+*.yaml text
+*.md text
+*.json text
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+*.woff binary
+*.woff2 binary
+*.pdf binary

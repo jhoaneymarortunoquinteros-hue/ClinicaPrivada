@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Auth;
+use App\Core\Mailer;
 use App\Models\Paciente;
+use App\Models\PasswordReset;
 use App\Models\Usuario;
 
 /**
@@ -61,8 +63,11 @@ final class AuthController
     }
 
     /**
-     * Recuperación de contraseña (simulada: no envía correo real).
-     * Siempre responde con el mismo mensaje para no revelar qué correos existen.
+     * Recuperación de contraseña: envía un correo con un enlace de un solo uso
+     * (60 minutos de vigencia).
+     *
+     * Siempre responde con el mismo mensaje, exista o no el correo, para no
+     * revelar qué direcciones están registradas.
      */
     public function recuperar(): void
     {
@@ -83,13 +88,8 @@ final class AuthController
 
             $user = Usuario::findByEmail($email);
             if ($user) {
-                // En un entorno real aquí se enviaría el correo con el enlace.
-                error_log(sprintf(
-                    '[recuperacion-contrasena] solicitud para %s (usuario id %d, %s)',
-                    $email,
-                    (int) $user['id'],
-                    (string) ($user['username'] ?? 'sin-username')
-                ));
+                $this->sendResetEmail($user);
+                PasswordReset::purgeExpired();
             }
 
             clear_form_state();
@@ -101,6 +101,91 @@ final class AuthController
             'title'  => 'Recuperar contraseña',
             'errors' => errors(),
         ], 'layouts/auth');
+    }
+
+    /**
+     * Muestra el formulario de nueva contraseña y, en POST, la guarda.
+     * Ruta: auth/restablecer?token=...
+     */
+    public function restablecer(): void
+    {
+        if (Auth::check()) {
+            redirect('dashboard/index');
+        }
+
+        $token = (string) input('token');
+        $reset = PasswordReset::findValid($token);
+
+        if (!$reset) {
+            flash('error', 'El enlace de recuperación no es válido o ya expiró. Solicita uno nuevo.');
+            redirect('auth/recuperar');
+        }
+
+        if (is_post()) {
+            $password = (string) input('password');
+            $confirm = (string) input('confirm');
+
+            $errors = [];
+            if (($msg = password_error($password)) !== null) {
+                $errors['password'] = $msg;
+            } elseif ($password !== $confirm) {
+                $errors['confirm'] = 'Las contraseñas no coinciden.';
+            }
+
+            if ($errors !== []) {
+                validation_fail($errors, ['password', 'confirm'], 'auth/restablecer', ['token' => $token]);
+            }
+
+            Usuario::setPassword((int) $reset['user_id'], $password);
+            PasswordReset::consume((int) $reset['user_id']);
+
+            flash('success', 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.');
+            redirect('auth/login');
+        }
+
+        view('auth/reset', [
+            'title'  => 'Nueva contraseña',
+            'token'  => $token,
+            'name'   => trim((string) $reset['first_name']),
+            'errors' => errors(),
+        ], 'layouts/auth');
+    }
+
+    /** Genera el token y entrega el correo (o lo deja en el log, si no hay SMTP). */
+    private function sendResetEmail(array $user): void
+    {
+        $token = PasswordReset::issue(
+            (int) $user['id'],
+            (string) ($_SERVER['REMOTE_ADDR'] ?? '')
+        );
+
+        $link = absolute_url('auth/restablecer', ['token' => $token]);
+        $appName = (string) config('app.name', 'Clínica VidaSalud');
+        $name = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+
+        $html = render_view('emails/reset', [
+            'name'    => $name,
+            'link'    => $link,
+            'minutes' => PasswordReset::LIFETIME_MINUTES,
+            'app'     => $appName,
+        ]);
+        $text = sprintf(
+            "Hola %s,\n\nRecibimos una solicitud para restablecer tu contraseña de %s.\n\n"
+            . "Copia y pega este enlace en tu navegador:\n%s\n\n"
+            . "El enlace caduca en %d minutos y solo puede usarse una vez.\n"
+            . "Si no fuiste tú, ignora este mensaje; tu contraseña no cambiará.\n",
+            $name !== '' ? $name : 'usuario',
+            $appName,
+            $link,
+            PasswordReset::LIFETIME_MINUTES
+        );
+
+        Mailer::send(
+            (string) $user['email'],
+            'Recupera tu contraseña · ' . $appName,
+            $html,
+            $text
+        );
     }
 
     /** Auto-registro público: crea un usuario con rol "paciente". */

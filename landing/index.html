@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clínica VidaSalud · Gestión de citas médicas</title>
+<meta name="description" content="Sistema web de gestión de citas médicas: pacientes, médicos, horarios, historial clínico y reportes. PHP + PostgreSQL.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f766e'/><path d='M50 24v52M24 50h52' stroke='white' stroke-width='12' stroke-linecap='round'/></svg>">
+<style>
+  :root{
+    --brand-900:#134e4a; --brand-800:#115e59; --brand-700:#0f766e;
+    --brand-600:#0d9488; --brand-100:#ccfbf1; --brand-50:#f0fdfa;
+    --slate-900:#0f172a; --slate-600:#475569; --slate-500:#64748b;
+    --slate-200:#e2e8f0; --slate-50:#f8fafc; --white:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--slate-900);background:var(--white);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+
+  header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);
+         backdrop-filter:blur(8px);border-bottom:1px solid var(--slate-200)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:66px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:1.05rem}
+  .logo{width:36px;height:36px;border-radius:10px;background:var(--brand-700);
+        display:grid;place-items:center;color:#fff}
+  .nav-links{display:none;gap:26px;font-size:.92rem;color:var(--slate-600)}
+  .nav-links a{text-decoration:none}
+  .nav-links a:hover{color:var(--brand-700)}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:11px 20px;
+       font-size:.92rem;font-weight:700;text-decoration:none;transition:.15s;border:1px solid transparent;cursor:pointer}
+  .btn-primary{background:var(--brand-700);color:#fff}
+  .btn-primary:hover{background:var(--brand-800);transform:translateY(-1px)}
+  .btn-ghost{background:#fff;color:var(--slate-600);border-color:var(--slate-200)}
+  .btn-ghost:hover{border-color:var(--brand-600);color:var(--brand-700)}
+
+  .hero{padding:70px 0 60px;background:
+        radial-gradient(900px 380px at 15% -10%,var(--brand-50),transparent 60%),
+        radial-gradient(700px 320px at 95% 10%,#eff6ff,transparent 55%)}
+  .pill{display:inline-flex;align-items:center;gap:7px;background:var(--brand-100);
+        color:var(--brand-800);border:1px solid #99f6e4;border-radius:999px;
+        padding:5px 14px;font-size:.78rem;font-weight:700;letter-spacing:.03em}
+  h1{font-size:clamp(2rem,5vw,3.1rem);line-height:1.15;letter-spacing:-.02em;
+     margin:20px 0 16px;font-weight:850}
+  h1 span{color:var(--brand-700)}
+  .lead{font-size:1.06rem;color:var(--slate-600);max-width:620px}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:44px;max-width:620px}
+  .stat{background:#fff;border:1px solid var(--slate-200);border-radius:14px;padding:16px 18px}
+  .stat b{display:block;font-size:1.5rem;color:var(--brand-700);line-height:1.2}
+  .stat span{font-size:.82rem;color:var(--slate-500)}
+
+  section{padding:56px 0}
+  .alt{background:var(--slate-50);border-top:1px solid var(--slate-200);
+       border-bottom:1px solid var(--slate-200)}
+  h2{font-size:clamp(1.5rem,3vw,2rem);letter-spacing:-.01em;margin-bottom:8px;font-weight:800}
+  .sub{color:var(--slate-500);margin-bottom:34px}
+  .grid{display:grid;gap:16px;grid-template-columns:1fr}
+  .card{background:#fff;border:1px solid var(--slate-200);border-radius:16px;padding:22px}
+  .card .ic{width:42px;height:42px;border-radius:11px;background:var(--brand-50);
+            color:var(--brand-700);display:grid;place-items:center;margin-bottom:14px}
+  .card h3{font-size:1rem;margin-bottom:6px;font-weight:750}
+  .card p{font-size:.9rem;color:var(--slate-600)}
+
+  .roles{display:grid;gap:12px;grid-template-columns:repeat(2,1fr)}
+  .role{background:#fff;border:1px solid var(--slate-200);border-radius:13px;
+        padding:16px 18px;display:flex;gap:13px;align-items:flex-start}
+  .dot{width:9px;height:9px;border-radius:50%;margin-top:8px;flex:none}
+  .role b{display:block;font-size:.94rem}
+  .role small{color:var(--slate-500);font-size:.84rem}
+
+  .cta-band{background:linear-gradient(135deg,var(--brand-800),var(--brand-900));color:#fff;
+            border-radius:20px;padding:44px 30px;text-align:center}
+  .cta-band h2{color:#fff}
+  .cta-band p{color:#ccfbf1;max-width:560px;margin:8px auto 26px}
+  .btn-white{background:#fff;color:var(--brand-800)}
+  .btn-white:hover{background:var(--brand-50)}
+
+  footer{padding:30px 0;font-size:.85rem;color:var(--slate-500);
+         border-top:1px solid var(--slate-200);
+         display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+
+  @media(min-width:720px){
+    .nav-links{display:flex}
+    .stats{grid-template-columns:repeat(4,1fr)}
+    .grid{grid-template-columns:repeat(3,1fr)}
+    .roles{grid-template-columns:repeat(4,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </span>
+      Clínica VidaSalud
+    </div>
+    <nav class="nav-links">
+      <a href="#funciones">Funciones</a>
+      <a href="#roles">Roles</a>
+      <a href="#tecnologia">Tecnología</a>
+    </nav>
+    <a class="btn btn-primary" href="https://clinica-vidasalud.onrender.com" id="app-link">
+      Abrir aplicación
+    </a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="pill">● Sistema de gestión de citas médicas</span>
+      <h1>Tu clínica, <span>organizada</span><br>de principio a fin.</h1>
+      <p class="lead">
+        Administra pacientes, médicos, especialidades y horarios; agenda y reprograma
+        citas; registra la historia clínica y genera reportes. Todo en un solo lugar,
+        con control de acceso por roles.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://clinica-vidasalud.onrender.com" id="app-link-2">
+          Entrar al sistema
+        </a>
+        <a class="btn btn-ghost" href="#funciones">Ver qué incluye</a>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b>4</b><span>roles con acceso propio</span></div>
+        <div class="stat"><b>13</b><span>tablas en PostgreSQL</span></div>
+        <div class="stat"><b>19</b><span>casos de uso</span></div>
+        <div class="stat"><b>100%</b><span>responsive</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="funciones" class="alt">
+    <div class="wrap">
+      <h2>Todo lo que hace</h2>
+      <p class="sub">Un módulo para cada tarea del día a día de la clínica.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
+          <h3>Agenda de citas</h3>
+          <p>Programar, reprogramar y cancelar citas con disponibilidad en vivo y bloqueo de traslapes.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>
+          <h3>Pacientes y médicos</h3>
+          <p>Alta, edición y búsqueda por cédula o nombre; catálogo de especialidades administrable.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+          <h3>Horarios de atención</h3>
+          <p>Días y bloques horarios por médico, con generación automática de franjas libres.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg></div>
+          <h3>Historia clínica</h3>
+          <p>Evolución, diagnóstico, observaciones y receta de cada consulta, con historial completo.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V12M10 20V5M16 20v-6M21 20H3"/></svg></div>
+          <h3>Reportes</h3>
+          <p>Citas por período, especialidad y estado; exportación a CSV para contabilidad.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10z"/></svg></div>
+          <h3>Seguridad</h3>
+          <p>Contraseñas robustas, CSRF, consultas preparadas y recuperación por correo con token.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roles">
+    <div class="wrap">
+      <h2>Un espacio para cada rol</h2>
+      <p class="sub">Cada usuario ve solo lo que le corresponde.</p>
+      <div class="roles">
+        <div class="role"><span class="dot" style="background:#0f766e"></span>
+          <div><b>Administrador</b><small>Usuarios, médicos, especialidades y reportes.</small></div></div>
+        <div class="role"><span class="dot" style="background:#0284c7"></span>
+          <div><b>Recepción</b><small>Registra pacientes y gestiona la agenda del día.</small></div></div>
+        <div class="role"><span class="dot" style="background:#7c3aed"></span>
+          <div><b>Médico</b><small>Consulta su agenda y registra la historia clínica.</small></div></div>
+        <div class="role"><span class="dot" style="background:#db2777"></span>
+          <div><b>Paciente</b><small>Solicita citas y consulta su historial.</small></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tecnologia" class="alt">
+    <div class="wrap">
+      <h2>Cómo está construido</h2>
+      <p class="sub">Arquitectura MVC ligera, sin frameworks pesados.</p>
+      <div class="grid">
+        <div class="card"><div class="ic">PHP</div>
+          <h3>PHP 8.2</h3><p>Controladores, modelos y helpers con tipado estricto y PDO.</p></div>
+        <div class="card"><div class="ic">SQL</div>
+          <h3>PostgreSQL 16</h3><p>13 tablas, triggers de validación de citas y vistas de lectura.</p></div>
+        <div class="card"><div class="ic">UI</div>
+          <h3>Tailwind CSS</h3><p>Interfaz responsive con barra lateral colapsable en móvil.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="cta-band">
+        <h2>¿Listo para probarlo?</h2>
+        <p>Entra con una de las cuentas de prueba y recorre el sistema completo.</p>
+        <a class="btn btn-white" href="https://clinica-vidasalud.onrender.com" id="app-link-3">
+          Abrir Clínica VidaSalud
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>© <span id="year">2026</span> Clínica VidaSalud · Sistema de gestión de citas médicas</span>
+  <span>PHP · PostgreSQL · Docker</span>
+</footer>
+
+<script>
+  // Permite cambiar la URL de la app desde la variable APP_URL de Vercel
+  // sin recompilar nada (si no existe, se mantiene el enlace por defecto).
+  var appUrl = (typeof process !== 'undefined' && process.env && process.env.APP_URL)
+    || window.APP_URL
+    || 'https://clinica-vidasalud.onrender.com';
+  ['app-link','app-link-2','app-link-3'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.href = appUrl;
+  });
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

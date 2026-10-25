@@ -186,14 +186,109 @@ El enrutado es `index.php?r=controlador/acción`, por ejemplo:
 
 ---
 
-## 8. Producción
+## 8. Correo real (recuperación de contraseña)
+
+El flujo **sí envía correo**. Funciona así:
+
+1. El usuario escribe su correo en `¿Olvidaste tu contraseña?`.
+2. Se crea un token aleatorio de 64 caracteres; **en la BD solo se guarda su hash
+   SHA-256** (tabla `password_resets`), con 60 minutos de vigencia.
+3. Se envía un correo con el enlace `index.php?r=auth/restablecer&token=…`.
+4. Al guardar la nueva contraseña se invalidan **todos** los tokens del usuario.
+
+> La respuesta web es **idéntica exista o no el correo**, para que nadie pueda
+> averiguar qué direcciones están registradas.
+
+### Configurar el envío (Gmail)
+
+1. Activa la verificación en dos pasos en tu cuenta de Google.
+2. Genera una **contraseña de aplicación**: <https://myaccount.google.com/apppasswords>
+3. Copia `.env.example` a `.env` y rellena:
+
+   ```bash
+   MAIL_DRIVER=smtp
+   MAIL_HOST=smtp.gmail.com
+   MAIL_PORT=587
+   MAIL_ENCRYPTION=tls
+   MAIL_USER=tu.correo@gmail.com
+   MAIL_PASS=xxxxxxxxxxxxxxxx    # contraseña de aplicación, NO la normal
+   MAIL_FROM=tu.correo@gmail.com
+   MAIL_FROM_NAME="Clínica VidaSalud"
+   ```
+4. `docker compose up -d` (el archivo `.env` ya se carga automáticamente).
+
+Si **no** hay credenciales, el sistema no falla: escribe el mensaje completo en
+`backend/storage/mail.log` (driver `log`), lo que permite probar el flujo entero
+sin enviar nada.
+
+En **Render** esas mismas claves van en *Environment* (ya vienen precargadas en
+`render.yaml`; solo hay que rellenar `MAIL_USER`, `MAIL_FROM` y `MAIL_PASS`).
+
+---
+
+## 9. Despliegue a la nube
+
+### Arquitectura
+
+| Pieza | Dónde vive | Por qué |
+|---|---|---|
+| App PHP + Apache (Docker) | **Render** (servicio web) | Ejecuta tu `Dockerfile` tal cual |
+| PostgreSQL 16 | **Render** (base de datos gestionada) | Se enlaza con `DATABASE_URL` automáticamente |
+| Landing informativa | **Vercel** | Es estática y no necesita servidor |
+
+> **Vercel no ejecuta Docker ni Apache** ni ofrece base de datos persistente: por
+> eso la app va a Render y Vercel solo recibe la landing.
+
+### A. Render — la aplicación
+
+1. Sube el proyecto a GitHub (si no está, `git push origin main`).
+2. En Render: **New → Blueprint** → selecciona el repositorio.
+3. Render detecta `render.yaml` y crea:
+   - la base de datos `clinica-db` (PostgreSQL, gratis),
+   - el servicio web `clinica-vidasalud` (Docker, gratis),
+   - las migraciones, que se ejecutan **solo al arrancar el contenedor**.
+4. En **Environment** completa las tres claves de correo marcadas como
+   `sync: false`: `MAIL_USER`, `MAIL_FROM` y `MAIL_PASS`.
+5. Ajusta `APP_BASE_URL` a la URL real que asignó Render
+   (p. ej. `https://clinica-vidasalud-xxxx.onrender.com`).
+6. Abre esa URL y entra con `admin` / `Vida#Salud2026!`.
+
+Detalles del despliegue:
+
+- `docker/entrypoint.sh` hace que Apache escuche en el puerto `PORT` que asigna
+  Render (10000) y ejecuta las migraciones reintentando hasta que la BD esté lista.
+- La sonda de salud es `/healthz`: comprueba PHP **y** PostgreSQL y devuelve `200 ok`.
+- El plan gratuito se suspende tras 15 min sin uso; la primera petición tarda
+  ~40 s en despertar.
+
+### B. Vercel — la landing
+
+1. Crea la cuenta en <https://vercel.com> y **Add New → Project**.
+2. Importa el mismo repositorio.
+3. En **Settings → General → Root Directory** pon `landing`
+   (allí está el `index.html` y el `vercel.json`).
+4. Deploy. Obtienes una URL tipo `https://clinica-vidasalud.vercel.app`.
+5. Dentro de la landing, los botones "Entrar al sistema" apuntan a Render.
+
+Para cambiar el destino de esos botones sin tocar el HTML, edita la variable
+`window.APP_URL` en el `<script>` final de `landing/index.html`.
+
+### C. Otras opciones
+
+La app es un contenedor estándar, así que sirve igual en **Railway**, **Fly.io**,
+**Cyclic**, **Google Cloud Run** o un VPS con Docker: solo hace falta exponer el
+puerto, montar un PostgreSQL y definir las variables de `.env.example`.
+
+---
+
+## 10. Notas de producción
 
 El `index.php` actual usa Tailwind **Play CDN** para cero configuración. En producción
 compila Tailwind:
 
 ```bash
 npm i -D tailwindcss @tailwindcss/forms
-npx tailwindcss -i resources/css/app.css -o public/assets/css/tailwind.css --minify
+npx tailwindcss -i resources/css/app.css -o frontend/public/assets/css/tailwind.css --minify
 ```
 
 y reemplaza el `<script src="https://cdn.tailwindcss.com">` por la hoja compilada.

@@ -57,21 +57,43 @@ function redirect(string $route, array $params = []): never
  */
 function view(string $template, array $data = [], ?string $layout = 'layouts/app'): void
 {
+    extract($data, EXTR_SKIP);
+    $content = render_view($template, $data);
+
+    if ($layout !== null) {
+        $title = $data['title'] ?? (string) config('app.name');
+        require FRONTEND_PATH . '/views/' . $layout . '.php';
+    }
+}
+
+/** Renderiza una plantilla y devuelve el HTML (sin layout, sin imprimirlo). */
+function render_view(string $template, array $data = []): string
+{
     $file = FRONTEND_PATH . '/views/' . $template . '.php';
     if (!is_file($file)) {
         throw new RuntimeException('Vista no encontrada: ' . $template);
     }
 
     extract($data, EXTR_SKIP);
-
     ob_start();
     require $file;
-    $content = ob_get_clean();
+    return (string) ob_get_clean();
+}
 
-    if ($layout !== null) {
-        $title = $data['title'] ?? (string) config('app.name');
-        require FRONTEND_PATH . '/views/' . $layout . '.php';
+/**
+ * URL absoluta, para incluir dentro de correos electrónicos.
+ * Usa APP_BASE_URL si está definida; si no, reconstruye el esquema y host.
+ */
+function absolute_url(string $route, array $params = []): string
+{
+    $base = rtrim((string) config('app.base_url', ''), '/');
+    if ($base === '') {
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443');
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost:8080');
+        $base = ($https ? 'https' : 'http') . '://' . $host;
     }
+    return $base . '/index.php?' . http_build_query(array_merge(['r' => $route], $params));
 }
 
 function is_post(): bool

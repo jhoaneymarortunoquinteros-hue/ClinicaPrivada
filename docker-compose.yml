@@ -18,6 +18,9 @@ services:
   # Migración + datos de prueba (se ejecuta una sola vez)
   migrate:
     build: .
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       db:
         condition: service_healthy
@@ -31,6 +34,9 @@ services:
 
   web:
     build: .
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       db:
         condition: service_healthy

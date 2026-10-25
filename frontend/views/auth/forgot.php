@@ -2,7 +2,7 @@
 /**
  * Recuperación de contraseña (público).
  * Variables del controlador: $title, $errors
- * El envío del correo está simulado: siempre se responde con el mismo mensaje.
+ * Envía un correo real con un enlace de un solo uso (ver AuthController::recuperar).
  */
 $errors = $errors ?? [];
 ?>

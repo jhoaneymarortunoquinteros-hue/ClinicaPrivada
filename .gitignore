@@ -21,5 +21,6 @@ desktop.ini
 
 # --- Logs y bases locales ---
 *.log
+backend/storage/mail.log
 *.sqlite
 *.sqlite3
