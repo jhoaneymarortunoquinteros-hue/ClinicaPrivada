@@ -1,0 +1,198 @@
+/* Estilos propios (complementan Tailwind CDN).
+   Nota: este archivo usa CSS plano a propósito, para funcionar
+   sin paso de compilación (Tailwind Play CDN + CSS puro). */
+
+:root {
+    --brand: #0f766e;       /* teal-700 */
+    --brand-dark: #115e59;  /* teal-800 */
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    background-color: #f1f5f9;
+}
+
+/* Barra lateral: transición suave en móvil */
+#sidebar {
+    transition: transform .25s ease-in-out;
+}
+
+@media (max-width: 1023px) {
+    #sidebar {
+        transform: translateX(-100%);
+    }
+    #sidebar.open {
+        transform: translateX(0);
+    }
+}
+
+/* Contenedor de tablas con desplazamiento horizontal en móvil */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Campos de formulario consistentes (usar class="input" en inputs/selects/textareas) */
+.input {
+    display: block;
+    width: 100%;
+    border-radius: .5rem;
+    border: 1px solid #cbd5e1;
+    background-color: #fff;
+    padding: .5rem .75rem;
+    font-size: .875rem;
+    line-height: 1.25rem;
+    color: #0f172a;
+}
+.input:focus {
+    outline: none;
+    border-color: #0f766e;
+    box-shadow: 0 0 0 1px #0f766e;
+}
+.input:disabled {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+.input[aria-invalid="true"] {
+    border-color: #e11d48;
+}
+label.input-label {
+    display: block;
+    font-size: .8rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: .3rem;
+}
+
+/* Tarjeta */
+.card {
+    background-color: #fff;
+    border-radius: .75rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+    border: 1px solid #e2e8f0;
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+}
+
+/* --- Toasts (notificaciones flotantes) --- */
+.toast-stack {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    width: min(23rem, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    padding: .7rem .85rem;
+    border: 1px solid;
+    border-radius: .75rem;
+    font-size: .875rem;
+    line-height: 1.35rem;
+    box-shadow: 0 12px 24px -8px rgba(15, 23, 42, .22);
+    animation: toast-in .3s cubic-bezier(.21, 1.02, .73, 1) both;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateX(1.5rem) scale(.97); }
+    to   { opacity: 1; transform: none; }
+}
+
+.toast.is-leaving {
+    opacity: 0;
+    transform: translateX(1.5rem);
+    transition: opacity .3s ease, transform .3s ease;
+}
+
+.toast-success { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+.toast-error   { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
+.toast-warning { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.toast-info    { background: #f0f9ff; border-color: #7dd3fc; color: #075985; }
+
+.toast-icon { flex: none; margin-top: .05rem; }
+.toast-body { min-width: 0; }
+.toast-close {
+    flex: none;
+    margin-left: auto;
+    padding: .15rem;
+    border-radius: .4rem;
+    color: inherit;
+    opacity: .5;
+    transition: opacity .15s, background-color .15s;
+}
+.toast-close:hover { opacity: 1; background: rgba(15, 23, 42, .07); }
+
+/* --- Tarjetas de rol en el login (CU01) --- */
+.role-card {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .6rem .7rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: .7rem;
+    font-size: .8rem;
+    font-weight: 600;
+    color: #334155;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s, background-color .15s, box-shadow .15s, transform .1s;
+}
+.role-card:hover {
+    border-color: #0d9488;
+    background: #f0fdfa;
+    transform: translateY(-1px);
+}
+.role-card.is-active {
+    border-color: #0d9488;
+    background: #f0fdfa;
+    color: #115e59;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, .15);
+}
+.role-card .role-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: .5rem;
+    background: #f1f5f9;
+    color: #0f766e;
+}
+.role-card.is-active .role-icon { background: #ccfbf1; }
+
+#role-hint {
+    border: 1px dashed #bae6fd;
+    background: #f0f9ff;
+    color: #0369a1;
+}
+
+@media print {
+    #sidebar,
+    header,
+    footer,
+    .no-print {
+        display: none !important;
+    }
+}

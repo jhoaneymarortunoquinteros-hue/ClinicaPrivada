@@ -1,0 +1,25 @@
+# --- Dependencias ---
+/vendor/
+/node_modules/
+
+# --- Entornos y secretos ---
+.env
+.env.*
+!.env.example
+
+# --- Docker ---
+pgdata/
+
+# --- Sistema y editores ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Logs y bases locales ---
+*.log
+*.sqlite
+*.sqlite3
