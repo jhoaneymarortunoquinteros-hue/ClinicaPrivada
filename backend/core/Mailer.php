@@ -4,15 +4,20 @@ declare(strict_types=1);
 namespace App\Core;
 
 /**
- * Cliente SMTP mínimo, sin dependencias externas (no usa composer).
+ * Envío de correo sin dependencias externas (no usa composer).
  *
  * Drivers soportados (clave mail.driver o variable MAIL_DRIVER):
- *   - 'smtp' : envío real por STARTTLS (587) o TLS implícito (465)
- *   - 'log'  : escribe el mensaje completo en backend/storage/mail.log
- *              (útil en local o mientras no hay credenciales SMTP)
+ *   - 'resend' : API HTTPS de Resend   (https://api.resend.com/emails)
+ *   - 'brevo'  : API HTTPS de Brevo    (https://api.brevo.com/v3/smtp/email)
+ *   - 'smtp'   : STARTTLS (587) / TLS implícito (465)
+ *   - 'log'    : escribe el mensaje completo en backend/storage/mail.log
  *
- * Si el envío SMTP falla se recurre al driver 'log' para que la petición
- * del usuario nunca se rompa; el error queda en el log de PHP.
+ * IMPORTANTE: Render bloquea TODO el tráfico SMTP saliente (25/465/587)
+ * hacia cualquier proveedor, pero las APIs HTTPS sí funcionan. Por eso en
+ * la nube se usa 'resend' o 'brevo' y 'smtp' queda para local.
+ *
+ * Si el envío falla se recurre al driver 'log' para que la petición del
+ * usuario nunca se rompa; el error queda en el log de PHP.
  */
 final class Mailer
 {
@@ -29,6 +34,14 @@ final class Mailer
 
         if ($text === '') {
             $text = trim(strip_tags($html));
+        }
+
+        // --- API HTTPS (Resend / Brevo): es lo que funciona en la nube ---
+        if (in_array($driver, ['resend', 'brevo', 'api'], true)) {
+            if (self::api($driver, $cfg, $from, $fromName, $to, $subject, $html, $text)) {
+                return true;
+            }
+            return self::log($to, $subject, self::buildMessage($from, $fromName, $to, $subject, $html, $text));
         }
 
         $message = self::buildMessage($from, $fromName, $to, $subject, $html, $text);
@@ -51,7 +64,13 @@ final class Mailer
     public static function isLogging(): bool
     {
         $cfg = (array) config('mail', []);
-        return strtolower((string) ($cfg['driver'] ?? 'smtp')) === 'log'
+        $driver = strtolower((string) ($cfg['driver'] ?? 'smtp'));
+
+        if (in_array($driver, ['resend', 'brevo', 'api'], true)) {
+            return ($cfg['api_key'] ?? '') === '';
+        }
+
+        return $driver === 'log'
             || ($cfg['host'] ?? '') === ''
             || ($cfg['user'] ?? '') === '';
     }
@@ -60,6 +79,94 @@ final class Mailer
     public static function logFile(): string
     {
         return BASE_PATH . '/backend/storage/mail.log';
+    }
+
+    // ------------------------------------------------------------------
+    //  APIs HTTPS (Resend / Brevo)  -> usadas en la nube
+    // ------------------------------------------------------------------
+    private static function api(
+        string $driver,
+        array $cfg,
+        string $from,
+        string $fromName,
+        string $to,
+        string $subject,
+        string $html,
+        string $text
+    ): bool {
+        $key = (string) ($cfg['api_key'] ?? '');
+        if ($key === '') {
+            error_log('[mailer] Falta MAIL_API_KEY: no se pudo enviar con el driver ' . $driver);
+            return false;
+        }
+
+        if ($driver === 'brevo') {
+            $r = self::httpPost('https://api.brevo.com/v3/smtp/email', ['api-key' => $key], [
+                'sender'       => ['name' => $fromName, 'email' => $from],
+                'to'           => [['email' => $to]],
+                'subject'      => $subject,
+                'htmlContent'  => $html,
+                'textContent'  => $text,
+            ]);
+        } else { // resend (y 'api' genérico)
+            $r = self::httpPost('https://api.resend.com/emails', ['Authorization' => 'Bearer ' . $key], [
+                'from'    => sprintf('%s <%s>', $fromName, $from),
+                'to'      => [$to],
+                'subject' => $subject,
+                'html'    => $html,
+                'text'    => $text,
+            ]);
+        }
+
+        if (! $r['ok']) {
+            error_log(sprintf(
+                '[mailer] API %s respondió HTTP %d: %s',
+                $driver,
+                $r['code'],
+                substr($r['body'], 0, 300)
+            ));
+            return false;
+        }
+
+        return true;
+    }
+
+    /** POST JSON con streams nativos (no depende de la extensión curl). */
+    private static function httpPost(string $url, array $headers, array $payload, int $timeout = 20): array
+    {
+        $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($body === false) {
+            return ['ok' => false, 'code' => 0, 'body' => 'payload inválido'];
+        }
+
+        $lines = [];
+        foreach ($headers as $name => $value) {
+            $lines[] = $name . ': ' . $value;
+        }
+        $lines[] = 'Content-Type: application/json';
+        $lines[] = 'Content-Length: ' . strlen($body);
+
+        $ctx = stream_context_create(['http' => [
+            'method'        => 'POST',
+            'header'        => implode(self::CRLF, $lines),
+            'content'       => $body,
+            'timeout'       => $timeout,
+            'ignore_errors' => true,
+        ]]);
+
+        $res = @file_get_contents($url, false, $ctx);
+
+        $code = 0;
+        if (isset($http_response_header[0])
+            && preg_match('/\s(\d{3})\s/', $http_response_header[0] . ' ', $m)) {
+            $code = (int) $m[1];
+        }
+
+        return [
+            'ok'   => $code >= 200 && $code < 300,
+            'code' => $code,
+            'body' => is_string($res) ? $res : '',
+        ];
     }
 
     // ------------------------------------------------------------------

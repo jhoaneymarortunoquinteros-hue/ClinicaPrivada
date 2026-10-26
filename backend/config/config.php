@@ -30,7 +30,9 @@ $config = [
         'lifetime' => 7200,
     ], $local['session'] ?? []),
     // Correo saliente (recuperación de contraseña).
-    // driver: 'smtp' (envío real) | 'log' (escribe en backend/storage/mail.log)
+    // driver: 'resend' | 'brevo' (API HTTPS, para la nube)
+    //         'smtp'            (STARTTLS/TLS, para local)
+    //         'log'             (escribe en backend/storage/mail.log)
     'mail' => array_replace_recursive([
         'driver'     => 'smtp',
         'host'       => 'smtp.gmail.com',
@@ -38,6 +40,7 @@ $config = [
         'encryption' => 'tls',          // tls | ssl | none
         'user'       => '',
         'pass'       => '',
+        'api_key'    => '',             // Resend o Brevo (MAIL_API_KEY)
         'from'       => 'no-reply@localhost',
         'from_name'  => 'Clínica VidaSalud',
         'timeout'    => 25,
@@ -83,6 +86,7 @@ $mailEnvMap = [
     'MAIL_ENCRYPTION' => 'encryption',
     'MAIL_USER'       => 'user',
     'MAIL_PASS'       => 'pass',
+    'MAIL_API_KEY'    => 'api_key',
     'MAIL_FROM'       => 'from',
     'MAIL_FROM_NAME'  => 'from_name',
 ];

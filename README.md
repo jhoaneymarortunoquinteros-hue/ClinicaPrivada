@@ -199,30 +199,44 @@ El flujo **sí envía correo**. Funciona así:
 > La respuesta web es **idéntica exista o no el correo**, para que nadie pueda
 > averiguar qué direcciones están registradas.
 
-### Configurar el envío (Gmail)
+### ⚠ Render bloquea el SMTP
 
-1. Activa la verificación en dos pasos en tu cuenta de Google.
-2. Genera una **contraseña de aplicación**: <https://myaccount.google.com/apppasswords>
-3. Copia `.env.example` a `.env` y rellena:
+Medido desde un servicio real en Render (diagnóstico propio, 2026-10):
 
-   ```bash
-   MAIL_DRIVER=smtp
-   MAIL_HOST=smtp.gmail.com
-   MAIL_PORT=587
-   MAIL_ENCRYPTION=tls
-   MAIL_USER=tu.correo@gmail.com
-   MAIL_PASS=xxxxxxxxxxxxxxxx    # contraseña de aplicación, NO la normal
-   MAIL_FROM=tu.correo@gmail.com
-   MAIL_FROM_NAME="Clínica VidaSalud"
-   ```
-4. `docker compose up -d` (el archivo `.env` ya se carga automáticamente).
+| Destino | Resultado |
+|---|---|
+| `api.resend.com`, `api.brevo.com`, `api.sendgrid.com` | ✅ funciona |
+| `smtp.gmail.com`, `smtp-relay.brevo.com`, `smtp.sendgrid.net`, `smtp.mailgun.org`, Office365, AWS SES… | ❌ **timeout** en 25/465/587 |
+
+El firewall de Render **bloquea todo el tráfico SMTP saliente**, no es un
+problema de credenciales. Por eso `Mailer` soporta drivers de **API HTTPS**:
+
+```bash
+MAIL_DRIVER=resend     # o 'brevo'
+MAIL_API_KEY=...       # clave de la API
+MAIL_FROM=...          # remitente verificado en la plataforma
+```
+
+Proveedores gratuitos compatibles:
+
+- **Resend** (<https://resend.com>) — 3.000 correos/mes. Se registra con GitHub,
+  la clave está en <https://resend.com/api-keys>.
+- **Brevo** (<https://brevo.com>) — 300 correos/día.
+
+### En local (SMTP de Gmail sí funciona)
+
+```bash
+MAIL_DRIVER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_ENCRYPTION=tls
+MAIL_USER=tu.correo@gmail.com
+MAIL_PASS=...            # contraseña de aplicación
+```
 
 Si **no** hay credenciales, el sistema no falla: escribe el mensaje completo en
-`backend/storage/mail.log` (driver `log`), lo que permite probar el flujo entero
-sin enviar nada.
-
-En **Render** esas mismas claves van en *Environment* (ya vienen precargadas en
-`render.yaml`; solo hay que rellenar `MAIL_USER`, `MAIL_FROM` y `MAIL_PASS`).
+`backend/storage/mail.log` (driver `log` o degradación automática), lo que
+permite probar el flujo entero sin enviar nada.
 
 ---
 

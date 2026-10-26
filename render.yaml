@@ -37,23 +37,25 @@ services:
           name: clinica-db
           property: connectionString
 
-      # --- Correo saliente (Gmail SMTP) -------------------------------
+      # --- Correo saliente -------------------------------------------------
+      # Render bloquea TODO el SMTP saliente (25/465/587) hacia cualquier
+      # proveedor, así que se usa la API HTTPS de Resend (gratuita).
+      # Si un día migras a otro host con SMTP, basta con MAIL_DRIVER=smtp.
       - key: MAIL_DRIVER
-        value: smtp
+        value: resend
+      - key: MAIL_API_KEY
+        sync: false               # ← clave de https://resend.com/api-keys
+      - key: MAIL_FROM
+        sync: false               # ← correo remitente verificado en Resend
+      - key: MAIL_FROM_NAME
+        value: "Clinica VidaSalud"
+      # Reserva SMTP (no funciona en Render, solo en local)
       - key: MAIL_HOST
         value: smtp.gmail.com
       - key: MAIL_PORT
         value: "587"
       - key: MAIL_ENCRYPTION
         value: tls
-      - key: MAIL_USER
-        sync: false               # ← tu correo Gmail (se escribe en el panel)
-      - key: MAIL_PASS
-        sync: false               # ← contraseña de aplicación de Gmail
-      - key: MAIL_FROM
-        sync: false               # ← normalmente el mismo correo que MAIL_USER
-      - key: MAIL_FROM_NAME
-        value: "Clínica VidaSalud"
 
 databases:
   - name: clinica-db
