@@ -17,7 +17,7 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /healthz     # sonda que devuelve 200 "ok"
+    healthCheckPath: /healthz.php # sonda real (no depende del rewrite)
     autoDeploy: true              # hace deploy cada vez que subes a main
 
     envVars:
