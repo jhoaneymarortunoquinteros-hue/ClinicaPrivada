@@ -24,3 +24,8 @@ desktop.ini
 backend/storage/mail.log
 *.sqlite
 *.sqlite3
+
+# --- Vercel (ids del proyecto, no es secreto pero no va al repo) ---
+.vercel/
+.vercel
+.env*
