@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * DIAGNÓSTICO TEMPORAL DE RED — se borra tras usarlo.
- * Comprueba si desde Render sale tráfico hacia el SMTP de Gmail y por qué puerto.
+ * Busca qué proveedores de correo son alcanzables desde Render.
  * Uso: /diag.php?k=vs-diag-2026
  */
 
@@ -12,82 +12,78 @@ if (($_GET['k'] ?? '') !== 'vs-diag-2026') {
     exit('not found');
 }
 
+set_time_limit(180);
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store');
 
-function try_connect(string $label, string $host, int $port, bool $ssl, bool $forceIpv4): void
+function tcp(string $host, int $port, float $timeout = 5.0): array
 {
-    $target = $host;
-    $note = '';
-
-    if ($forceIpv4) {
-        $ip4 = gethostbyname($host);
-        if ($ip4 === $host) {
-            echo str_pad($label, 34) . "DNS: no resolvió IPv4\n";
-            return;
-        }
-        $target = $ip4;
-        $note = " (IPv4 $ip4)";
+    $ip4 = gethostbyname($host);
+    if ($ip4 === $host) {
+        return ['ok' => false, 'ms' => 0, 'err' => 'DNS fallo', 'banner' => ''];
     }
-
-    $remote = ($ssl ? 'ssl://' : 'tcp://') . $target . ':' . $port;
-    $ctx = stream_context_create([
-        'ssl' => [
-            'peer_name'        => $host,
-            'verify_peer'      => true,
-            'verify_peer_name' => true,
-        ],
-    ]);
 
     $t0 = microtime(true);
     $errno = 0;
     $errstr = '';
-    $sock = @stream_socket_client($remote, $errno, $errstr, 8, STREAM_CLIENT_CONNECT, $ctx);
+    $sock = @stream_socket_client('tcp://' . $ip4 . ':' . $port, $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT);
     $ms = (int) round((microtime(true) - $t0) * 1000);
 
     if ($sock === false) {
-        echo str_pad($label, 34) . "FALLO ($ms ms) errno=$errno $errstr$note\n";
-        return;
+        return ['ok' => false, 'ms' => $ms, 'err' => "errno=$errno $errstr", 'banner' => ''];
     }
 
-    $banner = '';
-    if (! $ssl) {
-        $line = @fgets($sock, 256);
-        $banner = is_string($line) ? trim($line) : '';
-    }
-    echo str_pad($label, 34) . "OK ($ms ms)$note" . ($banner !== '' ? " | $banner" : '') . "\n";
+    $banner = @fgets($sock, 200);
     @fclose($sock);
+
+    return [
+        'ok'     => true,
+        'ms'     => $ms,
+        'err'    => '',
+        'banner' => is_string($banner) ? trim($banner) : '',
+    ];
 }
 
-echo "=== Salida a internet desde Render ===\n";
-
-// Control: HTTPS siempre debería funcionar
-try_connect('HTTPS 1.1.1.1:443', '1.1.1.1', 443, true, false);
-try_connect('HTTPS smtp.gmail.com:443', 'smtp.gmail.com', 443, true, true);
-
-echo "\n=== DNS ===\n";
-$ip = gethostbyname('smtp.gmail.com');
-echo str_pad('gethostbyname IPv4', 34) . $ip . "\n";
-$aaaa = @dns_get_record('smtp.gmail.com', DNS_AAAA);
-if (is_array($aaaa) && $aaaa !== []) {
-    foreach ($aaaa as $r) {
-        echo str_pad('AAAA (IPv6)', 34) . ($r['ipv6'] ?? '?') . "\n";
+function https_api(string $host, float $timeout = 6.0): array
+{
+    $t0 = microtime(true);
+    $ctx = stream_context_create(['http' => ['method' => 'GET', 'timeout' => $timeout, 'ignore_errors' => true]]);
+    $res = @file_get_contents('https://' . $host . '/', false, $ctx);
+    $ms = (int) round((microtime(true) - $t0) * 1000);
+    $code = 0;
+    if (isset($http_response_header[0]) && preg_match('#\s(\d{3})\s#', $http_response_header[0] . ' ', $m)) {
+        $code = (int) $m[1];
     }
-} else {
-    echo str_pad('AAAA (IPv6)', 34) . "(sin registros)\n";
+    return ['ok' => $res !== false || $code > 0, 'ms' => $ms, 'code' => $code];
 }
 
-echo "\n=== SMTP Gmail ===\n";
-try_connect('587 STARTTLS hostname', 'smtp.gmail.com', 587, false, false);
-try_connect('587 STARTTLS IPv4', 'smtp.gmail.com', 587, false, true);
-try_connect('465 SSL IPv4', 'smtp.gmail.com', 465, true, true);
-try_connect('25 sin TLS IPv4', 'smtp.gmail.com', 25, false, true);
+echo "=== SMTP (puerto 587) ===\n";
+$smtp587 = [
+    'smtp-relay.brevo.com',
+    'smtp.sendgrid.net',
+    'smtp.mailgun.org',
+    'email-smtp.us-east-1.amazonaws.com',
+    'smtp.hostinger.com',
+    'smtp.hostgator.com',
+    'smtp.office365.com',
+    'smtp.gmail.com',
+];
+foreach ($smtp587 as $h) {
+    $r = tcp($h, 587);
+    echo str_pad($h, 40) . ($r['ok'] ? 'OK   ' . $r['ms'] . 'ms  ' . $r['banner'] : 'FALLO ' . $r['ms'] . 'ms  ' . $r['err']) . "\n";
+}
 
-echo "\n=== Salida general ===\n";
-try_connect('HTTP example.com:80 IPv4', 'example.com', 80, false, true);
-try_connect('HTTPS api.resend.com:443', 'api.resend.com', 443, true, true);
+echo "\n=== SMTP (puerto 465 SSL) ===\n";
+foreach (['smtp.resend.com', 'smtp.gmail.com', 'mail.smtp2go.com', 'smtp.digitalocean.com'] as $h) {
+    $r = tcp($h, 465);
+    echo str_pad($h, 40) . ($r['ok'] ? 'OK   ' . $r['ms'] . 'ms  ' . $r['banner'] : 'FALLO ' . $r['ms'] . 'ms  ' . $r['err']) . "\n";
+}
+
+echo "\n=== APIs HTTPS ===\n";
+foreach (['api.resend.com', 'api.brevo.com', 'api.sendgrid.com', 'api.mailgun.net', 'api.postmarkapp.com'] as $h) {
+    $r = https_api($h);
+    echo str_pad($h, 40) . ($r['ok'] ? 'OK   ' . $r['ms'] . 'ms  HTTP ' . $r['code'] : 'FALLO ' . $r['ms'] . 'ms') . "\n";
+}
 
 echo "\n=== Entorno ===\n";
-echo str_pad('PORT', 34) . (getenv('PORT') ?: '(no definido)') . "\n";
-echo str_pad('MAIL_DRIVER', 34) . (getenv('MAIL_DRIVER') ?: '(no definido)') . "\n";
-echo str_pad('IPv6 soportado por PHP', 34) . (defined('AF_INET6') ? 'si' : 'no') . "\n";
+echo str_pad('PORT', 40) . (getenv('PORT') ?: '(no definido)') . "\n";
